@@ -1,0 +1,312 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{mdframed}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[colorlinks=true,urlcolor=ForestGreen]{hyperref}
+\newcommand{\dspace}{\baselineskip 16pt}
+\newcommand{\sspace}{\baselineskip 14pt}
+\textheight 9in
+\textwidth 6.5in 
+\oddsidemargin -0.1in \evensidemargin -0.1in
+\topmargin -0.3in
+\pagestyle{empty}
+
+
+\newcounter{problem}[section]
+\newenvironment{problem}[1][]{\refstepcounter{problem}\par\medskip
+   \noindent \textbf{Problem~\theproblem. #1} \rmfamily}{\medskip}
+
+\newenvironment{proof}{\begin{mdframed}\textbf{Ans:}}{ \end{mdframed}}
+
+
+\begin{document}
+\sspace
+\noindent
+Purdue University \hfill Duc Viet Le\\
+CS 59000SA        \hfill 
+% \href{mailto:le52@purdue.edu}{le52@purdue.edu}
+\dspace
+\begin{center}
+{\bf Assignment 1}
+\end{center}
+\vspace{.2in}
+\begin{problem}
+	Consider an experiment where a coin is tossed repeatedly.
+	\begin{itemize}
+		\item If the coin is a fair coin, what is the probability that the coin turns up 5 heads after 10 tosses?
+		\begin{proof}
+			Let $X$ be the number of time the coin turns heads after 10 tosses. Then $X \sim Bin(n = 10, p = .5)$. We have: 
+			\begin{equation*}
+				\Pr[X=5; 10, .5] = \binom{10}{5}0.5^{5}(1-0.5)^5=0.246 	
+			\end{equation*}
+		\end{proof}
+		\item With a fair coin, what’s the expected number of times you need to toss to observe head for the first time?
+		\begin{proof}
+			Using geometric series, we know that: 
+			\begin{equation*}
+				\begin{split}
+					|p| < 1: f(x) = \sum_{k=1}^{\infty}x^k = x/(1-x) \text{. Therefore, } xf'(x) = \sum_{k=1}^{\infty}kx^k = x/(1-x)^2
+				\end{split}
+			\end{equation*}
+			Let $X$ be the number of coin tosses in order to observe head for the first time. Using the above equation, it's not difficult to see that: 
+			$$
+				E(X) = \sum_{k=1}^{\infty}k\Pr[X=k] = \sum_{1}^{\infty}k\cdot 1/2^k = \frac{1/2}{(1-1/2)^2} = 2
+			$$
+		\end{proof}
+		\item With a coin that gives head with probability $p$, what’s the probability that the coin turns up $k$ heads after n tosses, where $n \geq k$
+		\begin{proof}
+			This is binomial distribution. Let X be te number of time that the coin turns heads after $n$ tosses. We have:
+			\begin{equation*}
+				\Pr[X=k;n,p] = \binom{n}{p}p^k(1-p)^k
+			\end{equation*}
+		\end{proof}
+		\item With a coin that gives head with probability $p$, what’s the expected number of coin tosses to observe head for the first time?
+		\begin{proof}
+			Let $X$ be the number of coin tosses in order to observe head for the first time. Using the equation in bullet 2, it's not difficult to see that: 
+			$$
+				E(X) = \sum_{k=1}^{\infty}k\Pr[X=k] = \sum_{1}^{\infty}k\cdot (1-p)^{k-1}p = \frac{p}{1-p}\sum_{1}^{\infty}k\cdot (1-p)^{k} = \frac{p}{1-p} \cdot \frac{1-p}{p^2} = \frac{1}{p}
+			$$
+		\end{proof}
+		\item With a coin that gives head with probability $p$, let the random variable $X$ be the number of heads minus the number of tails after n tosses. 
+		What is the expected value of $X$? What is the variance of $X$?
+		\begin{proof}
+			Let $X_{head}$ be the random variable denotes the number of heads after $n$ tosses.
+			It's not difficult to see that: 
+			\begin{equation*}
+				E(X) = E(X_{head}-(n - X_{head}))) = E(2X_{head} - n) =2E(X_{head}) - n =  2\cdot n/2-n = 0
+			\end{equation*}
+			We note that $X_{head}\sim Bin(n,p=1/2)$. The variance of $X$:
+			\begin{equation*}
+				Var(X) = Var(2x_{head}-n)=4Var(X_{head}) = 4\cdot n/4 = n 
+			\end{equation*}
+		\end{proof}
+	\end{itemize}
+\end{problem}
+\begin{problem}
+	You are being tested for arachnophobia. It is known that 30\% of people have arachnophobia. 
+	There are three spider pictures; they include a Goliath birdeater tarantula spider, a black widow spider, and a Brazilian wandering spider. Those who have arachnophobia
+	 shiver $\frac{9}{10}$ of the time when shown one of the pictures. 
+	Those who do not have arachnophobia shiver $\frac{1}{5}$ of the time they are shown a picture of a black widow. 
+	(And whether a person shivers or not when seeing one picture is independent from whether the person shivers or not when shown another picture.)
+\begin{itemize}
+	\item (a) You are shown three pictures and never shiver. What is the probability you have arachnophobia?
+	\begin{proof}
+		Let:
+		\begin{itemize}
+			\item 
+			$A$ be the binary random variable denotes if you have arachnophobia or not.
+			\item 
+			$S_1$ be the binary random variable denotes if you shiver or not after showing first picture
+			\item 
+			$S_2$ be the binary random variable denotes if you shiver or not after showing second picture.
+			\item 
+			$S_3$ be the binary random variable denotes if you shiver or not after showing third picture.
+
+			\item Let $S = S_1 + S_2 + S_3$
+		\end{itemize}
+		Since we assume that:
+		\begin{equation*}
+		\begin{split}
+		&\Pr[S_1 = 1 | A = 0] = \Pr[S_3 = 1| A = 0] = 0\\&\Pr[S_1 = 0 | A = 0] = \Pr[S_3 = 0| A = 0] = 1
+		\end{split}
+		\end{equation*}
+		and $S_1,S_2,S_3$ are conditionally independent.
+		\\We have:
+		\begin{equation*}
+		\begin{split}
+			\Pr[A = 1| S= 0] &= \frac{\Pr[S=0 | A = 1]\Pr[A = 1]}{\Pr[S=0]}\\
+			&= \frac{\Pr[S = 0 | A = 1]\Pr[A = 1]}{\Pr[S = 0| A = 1]\Pr[A=1] + \Pr[S = 0| A = 0]\Pr[A=0]}\\
+			&= \frac{0.1^3\cdot 0.3}{0.1^3\cdot 0.3 + 0.8\cdot 0.7} = 5.34 \cdot 10^{-4}
+		\end{split}
+		\end{equation*}
+	\end{proof}
+	\newpage
+	\item (b) You are shown three pictures and always shiver. What is the probability you have arachnophobia?
+	\begin{proof}
+		Similarly, we have:
+		\begin{equation*}
+		\begin{split}
+			\Pr[A = 1| S = 3] &= \frac{\Pr[S = 3 | A = 1]\Pr[A = 1]}{\Pr[S = 3]}\\
+			&= \frac{\Pr[S=3| A = 1]\Pr[A = 1]}{\Pr[S= 3| A = 1]\Pr[A=1] + \Pr[S=3| A = 0]\Pr[A=0]}\\
+			&= \frac{\Pr[S=3| A = 1]\Pr[A = 1]}{\Pr[S= 3| A = 1]\Pr[A=1] + 0} = 1
+		\end{split}
+		\end{equation*}
+		Intuitively, since I assume that $\Pr[S_1 = 1 | A = 0] = \Pr[S_3 = 1| A = 0] = 0$,  since $S=3$ because it must be the case that $S_1 = 1$ or $S_3 =1$
+	\end{proof}
+	\item (c)You are shown three pictures and shiver exactly twice. What is the probability you have arachnophobia?
+	\begin{proof}
+		Define $S = S_1 + S_2 + S_3$, we have:
+		\begin{equation*}
+		\begin{split}
+			&\Pr[A = 1| S = 2] = \frac{\Pr[S=2 | A = 1]\Pr[A = 1]}{\Pr[S=2]}\\
+			&= \frac{\Pr[S=2 | A = 1]\Pr[A = 1]}{\Pr[S=2 | A = 1]\Pr[A=1] + \Pr[S=2 | A = 0]\Pr[A = 0]}\\
+			&= \frac{\Pr[S=2 | A = 1]\Pr[A = 1]}{\Pr[S=2 | A = 1]\Pr[A=1] + 0} = 1
+		\end{split}
+		\end{equation*}
+		Intuitively, since I assume that $\Pr[S_1 = 1 | A = 0] = \Pr[S_3 = 1| A = 0] = 0$, Since $S = 2$, it must be the case that $S_1 = 1$ or $S_3 =1$
+	\end{proof} 
+	\item (d)You are shown three pictures and shiver exactly once. What is the probability you have arachnophobia?
+	\begin{proof}
+		We have: 
+		\begin{equation*}
+		\begin{split}
+			\Pr[A = 1| S = 1] &= \frac{\Pr[S=1 | A = 1]\Pr[A = 1]}{\Pr[S=1]}\\
+			&= \frac{\Pr[S=1 | A = 1]\Pr[A = 1]}{\Pr[S=1]}\\
+			% &= \frac{\Pr[S=2 | A = 1]\Pr[A = 1]}{\Pr[S=2 | A = 1]\Pr[A=1] + \Pr[S=2 | A = 0]\Pr[A = 0]}\\
+			% &= \frac{\Pr[S=2 | A = 1]\Pr[A = 1]}{\Pr[S=2 | A = 1]\Pr[A=1] + 0} = 1
+		\end{split}
+		\end{equation*}
+		If $S_1 =1$ or $S_3=1$, using the same argument as before, we have: 
+		\begin{equation*}
+			\Pr[A = 1 | S = 1] = \frac{\Pr[S=1 | A = 1]\Pr[A = 1]}{\Pr[S=1|A=1][A=1] + 0} = 1
+		\end{equation*}
+		If $S_2 =1$, we have:
+		\begin{equation*}
+		\begin{split}
+			\Pr[A = 1 | S = 1] &= \frac{\Pr[S=1 | A = 1]\Pr[A = 1]}{\Pr[S=1|A=1][A=1] +\Pr[S=1|A=0][A=0] } \\
+			&= \frac{0.9^2\cdot 0.1\cdot 0.3}{0.9^2\cdot 0.1\cdot 0.3 + 0.2\cdot 0.7} = 0.147
+		\end{split}
+		\end{equation*}
+	\end{proof}
+\end{itemize}
+\end{problem}
+
+\begin{problem}
+Tom runs a blivet-making factory. Unfortunately, due to circumstances beyond his control,
+10\% of the blivets that he makes are defective. Defective blivets fail 25\% of the time when one tests
+it, but good (non-defective) blivets never fail. How many times does Tom have to test a blivet that
+comes off his assembly line, in order for him to be 98\% sure that the blivet is good
+\end{problem}
+\begin{proof}
+	Let:
+	\begin{itemize}
+		\item $T_i(b)$ to be the binary random variable that denotes if a blivet, $b$, fails the $i$ test or not.
+
+		\item $G(b)$ to be the binary random variable that denotes if a blivet, $b$, is good or not ($G(b) = 0$ denotes defective item).
+	\end{itemize}
+	We are given that:
+	\begin{equation*}
+		\begin{split}
+			&\Pr[G(b)=1] = .9
+			\\& \Pr[T_i(b) = 1 | G(b) = 1] = 1 \\
+			&\Pr[T_i(b) = 0 | G(b) = 0] = 0.25 
+		\end{split}
+	\end{equation*}
+	So we want to know how many time Tom needs to test in order to have $98\%$ confident. In the other word, we want to find $x$ in the following equation:
+	\begin{equation*}
+	\begin{split}
+		\Pr[G(b)=1 | T_{1}(b)=1, ... , T_{x}(b) = 1] &= 0.98\\
+		\Pr[G(b)=1 | T_{1}(b)=1, ... , T_{x}(b) = 1] &=\frac{\Pr[T_{1}(b)=1, ... , T_{x}(b) = 1 | G(b)=1]\Pr[G(b)=1]}{\Pr[T_{1}(b)=1, ... , T_{x}(b) = 1]}
+		\\&=\frac{\Pr[G(b)]=1}{\Pr[T_{1}(b)=1, ... , T_{x}(b) = 1]|G(b)=0]\Pr[G(b)=0]}
+		\\&=\frac{0.9}{0.9+0.75^x\cdot0.1} = 0.98
+	\end{split}
+	\end{equation*}
+	Solve for $x$, we have:
+	$$x = \log_{3/4}{\frac{0.9/0.98-0.9}{0.1}} \approx 5.8$$
+	So Tom needs to test around 6 times.
+\end{proof}
+\begin{problem}
+	Prove that Jaccard Distance is a metric
+\end{problem}
+\begin{proof}
+	Jaccard Distance: 
+	\begin{equation*}
+		d_J(A,B) = 1 - \frac{|A\cap B|}{|A\cup B|}
+	\end{equation*}
+	\begin{itemize}
+		\item Non-negativity: 
+		\begin{equation*}
+		\begin{split}
+			d_J(A,B)  &=1 - \frac{|A\cap B|}{|A\cup B|} 
+					\\&= 1 - \frac{|A\cap B|}{|A-B| + |B-A|+|A\cap B|}\geq 0
+		\end{split}
+		\end{equation*}
+		the inequality holds because it's not difficult to see that the denominator is greater than the numerator
+		\item Identity: 
+		\begin{equation*}
+		\begin{split}
+		d_J(A,A)  &= 1 - \frac{|A\cap A|}{|A\cup A|} = 1 - 1 = 0
+		\end{split}
+		\end{equation*}
+		\item Symmetry:
+		\begin{equation*}
+		\begin{split}
+		d_J(A,B)  &= 1 - \frac{|A\cap B|}{|A\cup B|} = 1 - \frac{|B\cap A|}{|B\cup A|} = d_J(B,A)
+		\end{split}
+		\end{equation*}
+		the equality holds because $A\cup B = B\cup A$ and $A\cap B = B\cap A$
+		\item Triangle inequality: 
+		\begin{equation}
+		\begin{split}
+		d_J(A,C) + d_J(C,B) &> d_J(A,B) \\ 
+		1 + \frac{|A\cap B|}{|A\cup B|} &> \frac{|A\cap C|}{|A\cup C|} +  \frac{|C\cap B|}{|C\cup B|}\\
+		\frac{|A|+|B|}{|A\cup B|}  &> \frac{|A\cap C|}{|A\cup C|} +  \frac{|C\cap B|}{|C\cup B|}
+		\end{split}
+		\end{equation}
+		In order to prove inequality (1). We use the lemma provided by Wuwei on \href{https://piazza.com/class/jl3rmrxp4ir6bu?cid=18}{Piazza} which is:
+		\begin{equation}
+			|A\cap C||B\cup C| < |C|(|B|-|B\cap C| + |A \cap C|)
+		\end{equation}
+		Consider the right hand-side of equation 1:
+		\begin{equation}
+		\begin{split}
+			\frac{|A\cap C|}{|A\cup C|} +  \frac{|C\cap B|}{|C\cup B|} &= \frac{|A\cap C||B\cup C| + |B \cap C||A\cup C|}{|A\cup C||B\cup C|}\\
+			&< \frac{|C|(|A|+|B|)}{|A\cup C||B\cup C|} \textit{ (equation 2)}\\
+ 			&< \frac{|C|(|A|+|B|)}{|A\cup C||B\cup C|} \textit{ (equation 2)}\\
+			&< \frac{|C|(|A|+|B|)}{|(A\cup C)\cap (B\cup C)| |(A\cup C)\cup (B\cup C)|}\textit{ (equation 2)}\\
+			&< \frac{|C|(|A|+|B|)}{|(A\cup C)\cap (B\cup C)| |(A\cup B)|}\textit{ because } |A\cup B \cup C| > |A\cup B|\\
+			&< \frac{|A|+|B|}{|A \cup B} \textit{ because } \frac{|C|}{|(A\cup C)\cap (B\cup C)|} < 1 
+		\end{split}
+		\end{equation}
+		So the inequality 1 holds. This complete our proof. 
+	\end{itemize}
+\end{proof}
+\begin{problem}
+	Consider the following variant of the Monty Hall problem. Suppose there are 7 curtains with 1 car and 6 goats behind them. The host knows which curtains are hiding the cars. The contestant chooses one of the curtains. The host randomly chooses two curtains that have goats behind them and reveal the curtain, and gives the contestant the opportunity to switch. Then the host randomly chooses two more curtains that have goats behind them and reveals them, and again gives the contestant the opportunity to switch. What’s the probability of winning the car for each of the following strategies:
+	\begin{proof}
+	\begin{itemize}
+	\item[(a)] Does not switch; \\
+		The probability of not switching is still the same which is $1/7$
+	\item[(b)] Switch after the first pair of goats are revealed but not after the second pair;\\
+		The total probability of winning of switching to any other 4 doors is : $1-1/7=6/7$\\
+		Since there are $4$ doors left, the probability of winning now is: $3/14$	
+	\item[(c)] Does not switch after the first pair, but switch after the second pair is revealed;
+		The total probability of winning of switching to any other 2 doors is : $1-1/7=6/7$ \\
+		Since there are $2$ doors left, the probability of winning now is: $3/7$	
+	\item[(d)] Switch both times?
+		The total probability of winning of switching to any other 2 doors is : $1-1/7=6/7$ \\
+		Since there are $1$ doors left, the probability of winning now is: $6/7$
+	\end{itemize}
+	\end{proof}
+\end{problem}
+\begin{problem}
+Find one example of data mining applications in recent news articles (like the Target pregnancy prediction models we discussed in class). Answer the following:
+	\begin{itemize}
+		\item Briefly summarize the article and include a reference.
+		\begin{proof}
+			This \href{https://eprint.iacr.org/2014/763.pdf}{article} shows how researchers can learn about the bitcoin address of mobile client users by collect the information they send to other bitcoin client.
+			In summary,  bitcoin full clients allows mobile client to connect and retrieve transaction information related to its addresses. In order to avoid the full client learns about its addresses without retrieving too much information, the mobile client sends a Bloom filter with certain false positive rate to the full client, and the full client returns the those transactions that match the filter. 
+		\end{proof}
+		\item Identify the data analysis task in the application.
+		\begin{proof}
+			The idea is to use the Bloom filter collected from the mobile client to scan different blocks to narrow down the addresses space. The true addresses of mobile client is narrowed down by performing set intersection on those addresses that match the filter.
+			\\Moreover, if the adversary can collect more than one filter, the probability of guessing correct addresses increases dramatically.
+		\end{proof}
+		\item Outline the hypothesis that prompted the analysis.
+		\begin{proof}
+			The hypothesis is that new Bitcoin users and mobile users tends to use only few addresses, and they tend reuse it in different blocks. By collecting filter from them, malicious bitcoin node can narrow down search addresses search space to determine the number of bitcoin user have. 
+		\end{proof}
+		\item Describe the data that was analyzed.
+		\begin{proof}
+			The data that was analyzed is the Bitcoin blockchain. Each block contains set of transactions, and transactions in blockchain are linked together. Moreover, the output of this transaction forms input of the following transaction.
+		\end{proof}
+		\item If KNN is used for this, is it suitable? Justify your answer.
+		\begin{proof}
+			I am not sure how KNN can be applied in this example. However, in bitcoin transaction, the input address and the second ouput address because the second output address is normally used as an address to receive charges. Addresses can be related to each other depends on the distance from a specific transaction. 
+
+			However, KNN may not be suitable because it may difficult to obtain training data because people are not willing to reveal their addresses.
+		\end{proof}
+	\end{itemize}
+\end{problem}
+\end{document}

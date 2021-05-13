@@ -1,0 +1,278 @@
+\documentclass{article}
+\usepackage{calrsfs}
+\DeclareMathAlphabet{\pazocal}{OMS}{zplm}{m}{n}
+\usepackage{epsfig,endnotes,xspace,hyperref,url,diagbox}
+\usepackage{graphicx,subfigure,epsfig}
+\pagestyle{plain}
+\hyphenation{op-tical net-works semi-conduc-tor}
+\renewcommand{\AA}{\mathbf{A}}
+\AtBeginDocument{\let\textlabel\label}
+\usepackage{calrsfs}
+\DeclareMathAlphabet{\pazocal}{OMS}{zplm}{m}{n}
+\usepackage{amsmath,amsthm}
+\usepackage{amssymb}
+\usepackage{enumerate}
+\usepackage{varioref}
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{epstopdf}
+\epstopdfsetup{outdir=}
+\usepackage{xcolor}
+\usepackage{multirow}
+\usepackage{subfigure}
+\usepackage{comment}
+\usepackage{color}
+\usepackage[utf8]{inputenc}
+\usepackage[linesnumbered,ruled]{algorithm2e}
+\usepackage{mathtools}
+\usepackage{wrapfig}
+\usepackage[noend]{algpseudocode}
+\usepackage{tikz}
+\usepackage{esvect}
+\usepackage{mdframed}
+\setlength{\evensidemargin}{0in} \setlength{\oddsidemargin}{0in}
+\setlength{\textwidth}{6.5in} \setlength{\textheight}{9in}
+\setlength{\topmargin}{-0.25in} \setlength{\headheight}{0in}
+\newcommand{\conclusion}[1]{\vspace*{0.05in}\noindent\textbullet\textbf{\textsc{ Finding: }}{#1}\vspace*{0.05in}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{observation}{Observation}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}{Definition}
+\newtheorem{fact}{Fact}
+\newtheorem{example}{Example}
+\newtheorem{proposition}{Proposition}
+\renewcommand{\Pr}[1]{\ensuremath{\mathsf{Pr}\left[#1\right]}\xspace}
+\newcommand{\DP}[1]{\ensuremath{#1\mbox{-}\mathsf{DP}}\xspace}
+\newcommand{\Data}{\ensuremath{D}\xspace}
+\newcommand{\ans}[1]{\begin{mdframed}\textbf{Answer: }#1\end{mdframed}}
+
+\title{Project 2: Building a Classifier with Differential Privacy}
+\author{Duc Viet Le}
+
+\begin{document}
+\maketitle
+\section{Written Tasks}
+\begin{enumerate}
+    \item[]\textbf{Question 1:} Suppose that all the $n$ values are in the range $[a, b]$, what is the sensitivity for the following functions? (1) sum, (2) mean, (3) median
+    \ans{
+	\begin{enumerate}
+    \item 
+    \textbf{Sum:} In bounded differential privacy, one can replace extract one element with other element to obatin two neighbor datasets. 
+    Thus, one can replace the smallest value with the largest value; 
+    we have the sensitivity value for max computed as follow: 
+        \begin{equation}
+			\Delta_f  = \max_{D\simeq D'} |f(D) - f(D')| =|(b+\Sigma_{1}^{n-1}e_i)-(a+\Sigma_{1}^{n-1}e_i)| =  b-a
+        \end{equation}
+        Where $\Sigma_{1}^{n-1}e_i$ denotes the sum of other $n-1$ elements.
+
+    \item \textbf{Mean:} Similarly, we have the sensitivity value for mean compute as follow: 
+        \begin{equation}
+			\Delta_f  = \max_{D\simeq D'} |f(D) - f(D')| = \bigg|\frac{b+\Sigma_{1}^{n-1}e_i}{n} - \frac{a+\Sigma_{1}^{n-1}e_i}{n}\bigg|= (b-a)/n
+        \end{equation}
+        Where $\Sigma_{1}^{n-1}e_i$ denotes the sum of other $n-1$ elements.
+    \item \textbf{Median:}
+
+    \textit{- n is odd: } Then, if we sort $n$ values, the median will be element $(n+1)/2$. Thus, Let $D=\{a,..., a,b,...,b\}$ where first $(n+1)/2$ elements are $a$ and the rest are $b$. Thus, we obtain $D'$ by replace the $(n+1)/2$ element with $b$. It is not difficult to see that the median of $D$ is $a$,  and the median of $D'$ is $b$. Therefore, we have the sensitivity value for median computed as follow:
+        \begin{equation}
+			\Delta_f  = \max_{D\simeq D'} |f(D) - f(D')| =|a-b|= b-a
+        \end{equation} 
+        \textit{- n is even:} Consider a dataset $D$ that first $n/2+1$ elements are $a$ and last $n/2-1$ elements are $b$. We obtain $D'$ by replace the $(n/2+1)$-th with value $b$. It's not difficult to see that median of $D$ is $a$ while the median of $D'$ is $(a+b)/2$. Therefore,  we have the sensitivity value for median computed as follow:
+        \begin{equation}
+			\Delta_f  = \max_{D\simeq D'} |f(D) - f(D')| =|a-(b+a)/2|= (b-a)/2
+        \end{equation}
+        Since we only consider the max, then the sensitivity is $b-a$
+	\end{enumerate}
+	}
+	\item[]\textbf{Question 2:} Suppose that all the $n$ values are either $a$ or $b$. Suppose your DP algorithm outputs the number of $a$ values and $b$ values, respectively (with Laplace mechanism under privacy budget $\epsilon$), and you now calculate the mean of these $n$ values. What is the variance of this estimation?
+	\ans{
+		The sensitivity is computed as the $L_1$ norm of two vector. Since the global sensitivity for a count function is $1$, in this case we have two count functions. If we replace one element with other element, one count will decrease by 1 and the other will increase by 1, thus we have the sensitivity:
+		\begin{equation}\label{eq:globalsensitivity1}
+			\Delta_\mathsf{count}  = \max_{D\simeq D'} ||f(D) - f(D')||_1 = 2 
+		\end{equation}
+		
+		Consider the function $\mathsf{count}(D)$ thats output a vector $(\mathsf{c_a,c_b})$ where $\mathsf{c_a,c_b}$ denotes the number of $a$ and $b$ in $D$, respectively.
+		We apply Laplace mechanism to obtain: 
+		$$A_{\mathsf{count}}(D) = \mathsf{count}(D) + \langle X_1,X_2\rangle = \langle c_a+X1,c_B+X_2 \rangle$$ 
+		Where $X_1,X_2$ are random variable from $\mathsf{Lap}(\Delta_\mathsf{count}/\epsilon) = \mathsf{Lap}(2/\epsilon)$.
+
+		We have an estimation for the mean: 
+		\begin{equation}
+				\mathsf{EstMean}(A_\mathsf{count}(D))=((c_a+X_1)\cdot a+(c_b+X_2)\cdot b)/n =  (c_a\cdot a+c_b\cdot b)/n + (aX_1+bX_2)/n
+		\end{equation}
+		Thus we have the variance: 
+		\begin{equation}
+		\begin{split}
+			\mathsf{Var}(\mathsf{EstMean}(A_\mathsf{count}(D)) &= \mathsf{Var}((c_a\cdot a+c_b\cdot b)/n + (aX_1+bX_2)/n)\\
+															   &= \mathsf{Var}(aX_1+bX_2)/n^2\\
+															   &= (\mathsf{Var}(aX_1)+\mathsf{Var}(bX_2))/n^2\\
+															   &= (a^2\mathsf{Var}(X_1)+b^2\mathsf{Var}(X_2))/n^2\ \text{since } X_1, X_2 \text{ are idependent}\\
+															   &= (8a^2/\epsilon^2 +8b^2/\epsilon^2)/n^2\ \text{since } \mathsf{Var}(X_1)= \mathsf{Var}(X_2)=8/\epsilon^2\\
+															   &= 8(a^2 +b^2)/(\epsilon n)^2\\
+		\end{split}
+		\end{equation}
+	}
+	\item []\textbf{Question 3:}Suppose that the $n$ values each has two attributes, age and gender.  You are going to publish a histogram (with Laplace mechanism and $\epsilon$) of both attribute, with age bucketized into $[0-49]$ and $[50-100]$ (so there will be four numbers for: male-$[0-49]$, male-$[50-100]$, female-$[0-49]$, female-$[50-100]$).  Now you want to estimate the number of male users, what is the variance of this estimation?  What is the variance if you just use the gender attribute and ignore age when you publish the histogram?  If each value has $d$ binary attributes, what is the size of your histogram?
+	\ans{
+		Similarly, in bounded DP, the sensitivity of $\mathsf{Count(\cdot)}$ is 2 because a decrement in one bin implies an increment in another bin. We have:
+		\begin{equation}
+			\Delta_\mathsf{count}  = \max_{D\simeq D'} ||f(D) - f(D')||_1 = 2
+		\end{equation}
+		Consider the function $\mathsf{Count(D)}=\langle c_{m[0-49]},c_{m[50-100]},c_{f[0-49]},c_{f[50-100]}\rangle$ that outputs four numbers for: male-$[0-49]$, male-$[50-100]$, female-$[0-49]$, female-$[50-100]$. We have the Laplace Mechanism as follow:
+		\begin{equation}
+				A_\mathsf{count}(D)=\langle c_{m[0-49]},c_{m[50-100]},c_{f[0-49]},c_{f[50-100]}\rangle + \langle X_1, X_2, X_3, X_4\rangle
+		\end{equation}
+		Where $X_1,X_2, X_3, X_4$ are random variable from $\mathsf{Lap}(\Delta_\mathsf{count}/\epsilon) = \mathsf{Lap}(2/\epsilon)$
+		\begin{itemize}
+			\item Now you want to estimate the number of male users, what is the variance of this estimation?
+			\begin{equation}
+				\begin{split}
+				\mathsf{Var}(\mathsf{EstMale}(A_\mathsf{count}(D)) &= \mathsf{Var}(c_{m[0-49]}+X_1 + c_{m[50-100]} + X_2 )
+																 \\&= \mathsf{Var}(X_1) + \mathsf{Var}(X_2) 
+																 \\&= 8/\epsilon^2 + 8/\epsilon^2 = 16/\epsilon^2
+				\end{split}
+			\end{equation}
+			\item What is the variance if you just use the gender attribute and ignore age when you publish the histogram?
+			The variance will just be: 
+			\begin{equation}
+				\mathsf{Var}(\mathsf{EstMale}(A_\mathsf{count}(D))= \mathsf{Var}(X) = 8/\epsilon^2 				
+			\end{equation}
+
+			\item  If each value has $d$ binary attributes, what is the size of your histogram?
+			The size of histogram will be: $2^d$
+		\end{itemize}
+
+
+	}
+	\item []\textbf{Question 4:} Suppose that all the $n$ values are in the range $[a,b]$, and your task is to publish the $25$th, $50$th, and $75$th percentiles (assume $n>100$).  Now you are given an algorithm that adds independent Laplace noise $\mathsf{Lap}\left(\beta_{25}\right)$, $\mathsf{Lap}\left(\beta_{50}\right)$, and $\mathsf{Lap}\left(\beta_{75}\right)$, to the real answers, respectively ($\beta_{25}<\beta_{50}<\beta_{75}$).  Your task is to find out (1) what is the sensitivity of this problem, (2) what is the final minimal $\epsilon$ this algorithm can achieve? 
+	\ans{
+		\begin{itemize}
+			\item What is the sensitivity of this problem?
+			\\
+			Since we consider bounded, we can only replace elements. Consider a function that output 3 element $25$th, $50$th, $75$th, in the worst case, only one element can change at either $25$th, $50$th, or $75$th. Therefore, Let $f$ to be the function that publishes the $25$th, $50$th, and $75$th percentiles, then:
+			\begin{equation}
+			\begin{split}
+				&\Delta_f = \max_{D\simeq D'} ||f(D) - f(D')||_1 = |b-a| = b-a 
+				\\&\text{ where 25th,50th percentiles are }a\text{ and 75th percentile is b in }D\text{ and } a \text{ in } D'
+			\end{split}
+			\end{equation}
+			\item What is the final minimal $\epsilon$ this algorithm can achieve?
+			\\
+			Let $f(D)=\langle e_{25},e_{50},e_{75} \rangle$, $f(D')=\langle e'_{25},e'_{50},e'_{75} \rangle$. We define the Laplace mechanism as follow:
+			\begin{equation}
+				\AA(D) = f(D) + \langle X_0,X_1,X_2\rangle
+			\end{equation}
+			Where $X_0,X_1.X_2$ are random variable drawn from $\mathsf{Lap}(\beta_{25}),\mathsf{Lap}(\beta_{50})$ and $\mathsf{Lap}(\beta_{75})$, respectively.
+			Thus, we have:
+			\begin{equation}
+				\begin{split}
+					\Pr{\AA(D) = t} &=\Pr{f(D)+\langle X_0,X_1,X_2\rangle = t} 
+					\\&= \Pr{(X_0=t_0-e_{25})\wedge (X_1=t_1-e_{50})\wedge (X_2 = t_2-e_{75})}
+					\\&= \Pr{X_0=t_0-e_{25}}\Pr{X_1=t_1-e_{50}}\Pr{X_2 = t_2-e_{75}}
+					\\&= \frac{1}{8\beta_{25}\beta_{50}\beta_{75}}\exp(-|t_0-e_{25}|/\beta_{25} - |t_1-e_{50}|/\beta_{50} - |t_2-e_{75}|/\beta_{75})
+				\end{split}
+			\end{equation}
+			Similarly, we have:
+			\begin{equation}
+				\Pr{\AA(D') = t} = \frac{1}{8\beta_{25}\beta_{50}\beta_{75}}\exp(-|t_0-e'_{25}|/\beta_{25} - |t_1-e'_{50}|/\beta_{50} - |t_2-e'_{75}|/\beta_{75})
+			\end{equation}
+			From (14),(15) we have: 
+			\begin{equation*}
+			\begin{split}
+			\frac{\Pr{\AA(D) = t}}{\Pr{\AA(D') = t}} &= \exp\bigg(\frac{|t_0-e'_{25}|-|t_0-e_{25}|}{\beta_{25}} + \frac{|t_1-e'_{50}|-|t_1-e_{50}|}{\beta_{50}}+\frac{|t_2-e'_{75}|-|t_2-e_{75}|}{\beta_{75}}\bigg)
+				\\&\leq \exp\bigg(\frac{|e_{25}-e'_{25}|}{\beta_{25}} + \frac{|e_{50}-e'_{50}|}{\beta_{50}} +\frac{|e_{75}-e'_{75}|}{\beta_{75}}\bigg) \text{ because of triangle inequality}
+				\\&\leq \exp\bigg(\frac{||f(D)-f(D')||_1}{\beta_{25}}\bigg) \leq \exp(\Delta_f/\beta_{25}) =\exp((b-a)/\beta_{25})
+			\end{split}
+			\end{equation*}
+		\end{itemize}
+		Therefore, the minimal $\epsilon$ is $(b-a)/\beta_{25}$
+	}
+	\item []\textbf{Question 5:} If there is no public dataset available, and you instead use $10\%$ of your sensitive data, sampled randomly, to find the desired histogram, without differential privacy.  The remaining $90\%$ of data is used to calculate the exact values in each cell of the histogram (and then add Laplace noise $\mathsf{Lap}\left(\frac{1}{\epsilon}\right)$).  What will be the worst case  $\epsilon$ for the whole process? 
+	\ans{
+		Given dataset $D$, there are two algorithms $\AA_1(\cdot)$ and $\AA_2(\cdot)$. $\AA_1$ takes as input the dataset $D$ outputs $T$ that contains some attributes and some dataset $D_2$ such that $D_2\subset D$ and $|D_2|/|D|=.9$. The algorithm $\AA_2$ uses $D_2$ and outputs the count for each attributes output by $\AA_1$ and adds $\mathsf{Lap}(1/\epsilon)$ noise to each count.  We want to compute the worst case for the sensitivity $\epsilon$ of the process $\AA_2(\AA_1(D))$ in bounded setting:
+		\begin{itemize}
+			\item 
+			Algorithm  $\AA_1$ samples $10\%$ data uniformly at random, I assume that the algorithm is $0$-DP on unbounded setting.
+			\item 
+			Algorithm $\AA_2$ applies the count and add $\mathsf{Lap(1/\epsilon)}$, this algorithm is $\epsilon$-DP on unbounded setting
+		\end{itemize}
+		Using the sequential composition, $\AA_2(\AA_1(D))$ achieves $\epsilon$-unbounded-DP. However, in this project we consider bounded DP, the $\AA_2(\AA_1(D))$ will achieve $2\epsilon$-bounded-DP because one can assume that we transform the data by remove 1 record and add 1 record. Therefore, the worst case is $2\epsilon$. 
+	}
+\end{enumerate}
+\section{Programming Part}
+\begin{itemize}
+	\item A brief report of the programming task is required. The report should describe your algorithm, the reason for your design, and the argument why your algorithm is $\epsilon$-DP.
+	\ans{
+
+		\begin{itemize}
+			\item[] \textbf{Selecting Grid: } 
+			The algorithm uses 6 attributes which are \texttt{age},\texttt{capital-gain}, \texttt{education-num}, \texttt{marital-status}. Here are few methods that I used:
+			\begin{itemize}
+				\item \textbf{Semantic Meaning:}
+				Based on the semantic meaning, I think it's reasonable to choose \texttt{capital-gain} because this attribute is highly correlated to the income. 
+
+				\item \textbf{Decision Tree:}
+				For each of attributes, for example \texttt{education-num} and \texttt{marital-status}, I plot those attributes to find out which range are more likely to have income higher than 50k and divide those bins accordingly. 
+
+			\end{itemize}
+			Finally, the smaller the number of attributes and bins, the lower the noise that we need to add. 
+
+			\item[] \textbf{Adding Laplace noise:} I use the equation from wikipedia\footnote{\url{https://en.wikipedia.org/wiki/Laplace_distribution\#Generating_random_variables_according_to_the_Laplace_distribution}} to generate noise:
+				\begin{equation}
+					X = \mu - \beta \mathsf{sgn}(U)\ln(1-2|U|)
+				\end{equation}
+				where $U$ is the random variable drawn from the uniform distribution on the interval $(-.5,.5]$
+				In this work, $\mu = 0$ and $\beta=\Delta_f/\epsilon= 2/\epsilon$ (bounded-DP)
+			\item[] \textbf{The algorihm is $\epsilon$-DP:}
+			The algorithm satisfies $\epsilon$-DP. The reason is that the algorithm output a histogram as an vector. Using result of theorem $2.15$ (Laplace Mechanism, the vector case) from the book ``Differential Privacy: From Theory to Practice'', we can claim that by adding noise independently for each element of the vector, our algorithm still satisfies $\epsilon$-DP
+		\end{itemize}
+	}
+	
+	\item Performance $\epsilon = .1$
+	\begin{verbatim}
+	python3 exp.py --epsilon=.1 --file=adult.data
+	1 	 0.8304620203602192
+	2 	 0.847821762482594
+	3 	 0.8417481540610656
+	4 	 0.8435496794871795
+	5 	 0.8337006611901423
+	6 	 0.8466561139691333
+	7 	 0.8361863057324841
+	8 	 0.8419580419580419
+	9 	 0.8451548451548452
+	10 	 0.8354579329280251
+	Average: 0.8402695517323728
+	\end{verbatim}
+	\item Performance $\epsilon = .5$
+	\begin{verbatim}
+	python3 exp.py --epsilon=.5 --file=adult.data
+	1 	 0.8484787830264211
+	2 	 0.8376921541225794
+	3 	 0.8287027783330002
+	4 	 0.8447862564922094
+	5 	 0.842546397924566
+	6 	 0.8413173652694611
+	7 	 0.8414123279473369
+	8 	 0.8472444089456869
+	9 	 0.8438936638017189
+	10 	 0.8426203315358498
+	Average: 0.841869446739883
+	\end{verbatim}
+	\item Performance $\epsilon = 1.$
+	\begin{verbatim}
+	python3 exp.py --epsilon=1.0 --file=adult.data
+	1 	 0.8451239008792966
+	2 	 0.8436378141204627
+	3 	 0.8447242206235012
+	4 	 0.8296725239616614
+	5 	 0.8517853580690206
+	6 	 0.8437874550539353
+	7 	 0.8421157684630739
+	8 	 0.8357970435477428
+	9 	 0.8457850579304834
+	10 	 0.8431450808221912
+	Average: 0.8425574223471368
+	\end{verbatim}
+\end{itemize}
+\end{document}

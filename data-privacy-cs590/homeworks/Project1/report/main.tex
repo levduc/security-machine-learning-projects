@@ -1,0 +1,728 @@
+
+\documentclass[a4paper,10pt]{article}
+\usepackage{graphicx}
+\usepackage[english]{babel}
+\usepackage[latin1]{inputenc}
+\usepackage{fourier} 
+\usepackage{array}
+\usepackage{makecell}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{color}
+\usepackage[letterpaper,top=1in,bottom=1in,left=1in,right=1in]{geometry}
+\usepackage{times}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{parcolumns}
+\usepackage[framemethod=TikZ]{mdframed}
+\usepackage{algorithm2e}
+\usepackage{lipsum,capt-of,graphicx}% http://ctan.org/pkg/{lipsum,capt-of,graphicx}
+\usepackage{color}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\lstset{
+    basicstyle=\scriptsize\ttfamily,columns=fullflexible,
+    backgroundcolor=\color{white},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+
+\include{pgflibraryarrows.new.code}
+\include{tikzlibrarycrypto.symbols.code}
+%%% Commom TiKZ Library
+\usetikzlibrary{positioning}
+
+%%% Custom TikZ addons
+\usetikzlibrary{crypto.symbols}
+\tikzset{shadows=no}        % Option: add shadows to XOR, ADD, etc.
+
+%
+\textheight 9.1in
+\textwidth 6.5in 
+\oddsidemargin -0.1in \evensidemargin -0.1in
+\topmargin -0.3in
+\pagestyle{empty}
+
+\renewcommand\theadalign{bc}
+\renewcommand\theadfont{\bfseries}
+\renewcommand\theadgape{\Gape[4pt]}
+\renewcommand\cellgape{\Gape[4pt]}
+
+\begin{document}
+%
+   \title{Project \#1 : Encrypted File System}
+
+   \author{Duc Viet Le \\ le52@purdue.edu}
+          
+   \date{}
+
+   \maketitle
+\section{Design Explaination}
+\subsection{Meta-data design} % (fold)
+\label{sub:meta_data_design}
+Block 0 contains all meta-data information. The metadata information includes password salt($\mathsf{passwd\_salt}$), encryption salt ($\mathsf{enc\_salt}$), mac salt ($\mathsf{mac\_salt}$), password digest ($\mathsf{passwordDigest}$), username ($\mathsf{Username}$), encrypted message length. The structure of block 0 is in table~\ref{table:CBlock}
+
+\begin{table}[ht!]
+  \centering
+  \begin{tabular}{ | l | l | l|}
+    \hline
+    \textbf{Field name} &
+    \textbf{Size} &
+    \textbf{Description} \\ \hline\hline
+    
+    $\mathsf{passwd\_salt}$ & 
+    16 bytes&
+    Password Salt. It is used to compute the password digest. \\ \hline
+    
+    $\mathsf{enc\_salt}$ & 
+    16 bytes&
+    Encryption salt. It is used to generate key for encryption\\ \hline
+
+    $\mathsf{mac\_salt}$ & 
+    16 bytes&
+    Mac salt. It is used to generate key for encryption\\ \hline
+    
+    $\mathsf{password\_digest}$ & 
+    32 bytes&
+    Password Digest. $\mathsf{password\_digest} := \mathsf{SHA256(password||passwd\_salt})$\\ \hline
+    $\mathsf{user\_name}$ & 
+    128 bytes&
+    Username\\ \hline
+    $IV$ & 
+    16 bytes&
+    Initialization Vector\\ \hline
+    $\mathsf{file\_length}$ & 
+    4 bytes&
+    Encrypted file length\\ \hline
+    $\mathsf{Content}$ & 
+    764 bytes&
+    Encrypted content of a file system\\ \hline
+    Tag & 
+    32 bytes&
+    Tag of the block from byte 0 till byte 991\\ \hline
+  \end{tabular}
+  
+  \vspace{5pt}
+  \caption{the structure of Block 0}
+  \label{table:CBlock}
+\end{table}
+Similarly, the structure of all other block other than block 0 is as follow:
+\begin{table}[ht!]
+  \centering
+  \begin{tabular}{ | l | l | l|}
+    \hline
+    \textbf{Field name} &
+    \textbf{Size} &
+    \textbf{Description} \\ \hline\hline
+    $IV$ & 
+    16 bytes&
+    Initialization Vector\\ \hline
+    $\mathsf{Content}$ & 
+    976 bytes&
+    Encrypted content of a file system\\ \hline
+    Tag & 
+    32 bytes&
+    Tag of the block from byte 0 till byte 991\\ \hline
+  \end{tabular}
+  \vspace{5pt}
+  \caption{the structure of Block $n$ where $n>0$}
+  \label{table:CBlock}
+\end{table}
+% \subsection meta_data_design (end)
+\subsection{User Authentication} % (fold)
+\label{sub:user_authentication}
+When a user tries to read/write to a file, it is required that user to provide the password (i.e $\mathsf{password}$)that is used to encrypted and mac the file.
+After user provides the password, the password is prepended with the $\mathsf{passwd\_salt}$ and passed to SHA256 hash function. The system will deny access if $$(\mathsf{password\_digest} == \mathsf{HA256(password||passwd\_salt})) = \mathsf{false}$$
+Otherwise, if the password is correct, the encryption key and mac key will be derived as follow:
+\begin{equation*}
+  \begin{split}
+    \mathsf{enc\_key} &:= \mathsf{SHA256(username||password||enc\_salt})[0..127]\\ 
+    \mathsf{mac\_key} &:= \mathsf{SHA256(username||password||mac\_salt})[0..127]
+  \end{split}
+\end{equation*}
+Both encryption and mac keys are first 16 bytes of hash digest.
+User will use those keys to decrypt and verify integrity of blocks.
+% subsection user_authentication (end)
+\subsection{Encryption Design}
+We use CTR mode of encryption with Initial Vector. 
+We use the function $\mathsf{encript\_AES}()$ in ECB mode for one block as our pseudorandom function.
+Our construction of encryption algorithm is in figure~\ref{firgure:enc}
+\begin{figure}[ht!]
+  \centering
+  \begin{tikzpicture}[scale=1.5]  
+    \begin{scope}
+    % \node[draw,thick,minimum width=2em,minimum height=2em] (e) {$\mathcal E_{K}$} ;
+    % \node[XOR,thick,below = 2em of e] (xor) {};
+    \node[] (e) {} ;
+    \node[above = 2.65em of e] (iv) {$IV$};
+    \node[below = 5.5em of e] (c) {$IV$};
+    % \node[left = 2em of xor] (m) {$m_{0}$};
+    \draw[edge] (iv) -- (c);
+    \end{scope}
+    
+    \begin{scope}[xshift=4em]
+    \node[draw,thick,minimum width=2em,minimum height=2em] (e) {$ Enc_{K}$} ;
+    \node[XOR,thick,below = 2em of e] (xor) {};
+    \node[above = 2em of e] (iv) {$IV + 1$};
+    \node[below = 2em of xor] (c) {$c_{1}$};
+    \node[left = 2em of xor] (m) {$m_{1}$};
+    \draw[edge] (iv) -- (e);
+    \draw[edge] (e) -- (xor);
+    \draw[edge] (m) -- (xor);
+    \draw[edge] (xor) -- (c);
+    \end{scope}
+    \begin{scope}[xshift=8em]
+    \node[draw,thick,minimum width=2em,minimum height=2em] (e) {$ Enc_{K}$} ;
+    \node[XOR,thick,below = 2em of e] (xor) {};
+    \node[above = 2em of e] (iv) {$IV +  2$};
+    \node[below = 2em of xor] (c) {$c_{2}$};
+    \node[left = 2em of xor] (m) {$m_{2}$};
+    \draw[edge] (iv) -- (e);
+    \draw[edge] (e) -- (xor);
+    \draw[edge] (m) -- (xor);
+    \draw[edge] (xor) -- (c);
+    \end{scope}
+    \begin{scope}[xshift=11em]
+    \node at (0,0) {$\cdots\cdots$};
+    \end{scope}
+    \begin{scope}[xshift=14em]
+    \node[draw,thick,minimum width=2em,minimum height=2em] (e) {$ Enc_{K}$} ;
+    \node[XOR,thick,below = 2em of e] (xor) {};
+    \node[above = 2em of e] (iv) {$IV + t$};
+    \node[below = 2em of xor] (c) {$c_{t}$};
+    \node[left = 2em of xor] (m) {$m_{t}$};
+    \draw[edge] (iv) -- (e);
+    \draw[edge] (e) -- (xor);
+    \draw[edge] (m) -- (xor);
+    \draw[edge] (xor) -- (c);
+    \end{scope}
+  \end{tikzpicture}
+  \caption{Encryption Algorithm}
+  \label{firgure:enc}
+\end{figure}
+\\
+Similarly, the construction of decryption algorithm is as follow:
+\begin{figure}[ht!]
+  \centering
+  \begin{tikzpicture}[scale=1.5]  
+    \begin{scope}
+    % \node[draw,thick,minimum width=2em,minimum height=2em] (e) {$\mathcal E_{K}$} ;
+    % \node[XOR,thick,below = 2em of e] (xor) {};
+    \node[] (e) {} ;
+    \node[above = 2.65em of e] (iv) {$IV$};
+    % \node[below = 5.5em of e] (c) {$IV$};
+    % % \node[left = 2em of xor] (m) {$m_{0}$};
+    % \draw[edge] (iv) -- (c);
+    \end{scope}
+    
+    \begin{scope}[xshift=4em]
+    \node[draw,thick,minimum width=2em,minimum height=2em] (e) {$ Enc_{K}$} ;
+    \node[XOR,thick,below = 2em of e] (xor) {};
+    \node[above = 2em of e] (iv) {$IV + 1$};
+    \node[below = 2em of xor] (c) {$m_{1}$};
+    \node[left = 2em of xor] (m) {$c_{1}$};
+    \draw[edge] (iv) -- (e);
+    \draw[edge] (e) -- (xor);
+    \draw[edge] (m) -- (xor);
+    \draw[edge] (xor) -- (c);
+    \end{scope}
+    \begin{scope}[xshift=8em]
+    \node[draw,thick,minimum width=2em,minimum height=2em] (e) {$ Enc_{K}$} ;
+    \node[XOR,thick,below = 2em of e] (xor) {};
+    \node[above = 2em of e] (iv) {$IV +  2$};
+    \node[below = 2em of xor] (c) {$m_{2}$};
+    \node[left = 2em of xor] (m) {$c_{2}$};
+    \draw[edge] (iv) -- (e);
+    \draw[edge] (e) -- (xor);
+    \draw[edge] (m) -- (xor);
+    \draw[edge] (xor) -- (c);
+    \end{scope}
+    \begin{scope}[xshift=11em]
+    \node at (0,0) {$\cdots\cdots$};
+    \end{scope}
+    \begin{scope}[xshift=14em]
+    \node[draw,thick,minimum width=2em,minimum height=2em] (e) {$ Enc_{K}$} ;
+    \node[XOR,thick,below = 2em of e] (xor) {};
+    \node[above = 2em of e] (iv) {$IV + t$};
+    \node[below = 2em of xor] (c) {$m_{t}$};
+    \node[left = 2em of xor] (m) {$c_{t}$};
+    \draw[edge] (iv) -- (e);
+    \draw[edge] (e) -- (xor);
+    \draw[edge] (m) -- (xor);
+    \draw[edge] (xor) -- (c);
+    \end{scope}
+  \end{tikzpicture}
+  \caption{Decryption Algorithm}
+  \label{firgure:dec}
+\end{figure}
+\subsection{Length hiding} % (fold)
+\label{sub:length_hiding}
+In order to hide the actual length of the file system, I pad the actual content of file with 0x00 so that the length of the plaintext passed to the encryption function is 764 byte for first block and 976 byte for all other block. In another word, I followed the suggestion in the hand out.
+
+\subsection{Message authentication code} % (fold)
+\label{sub:message-authentication}
+I followed the Encrypt-then-MAC paradigm. I encrypt the content of the file first then compute the tag of the encrypted payload. This construction is proven to be secured against padding oracle attack agaisnt Mac-then-Encrypt construction. 
+The MAC algorithm is constructed using $\mathsf{SHA256(\cdot)}$ hash function. Given the $\mathsf{mac\_key}$, MAC is a combination of two algorithms described as follows:
+\begin{itemize}
+  \item $\mathsf{MAC\_SHA256(mac\_key, m)}$ outputs:
+    $$\mathsf{tag}:= \mathsf{SHA256((k\oplus opad)||SHA256((k\oplus ipad)||m))}$$
+  where $\mathsf{ipad} = 0x363636...36, \mathsf{ipad} = 0x5c5c...5c$ and both has the same length with $\mathsf{mac_key}$ which is 16 bytes.
+  \item $\mathsf{MAC\_SHA256\_verify(mac\_key, m, tag)}$: return whether:
+  $$\mathsf{tag} \stackrel{?}= \mathsf{MAC\_SHA256(mac\_key, m)}$$
+\end{itemize}
+\subsection{Efficiency} % (fold)
+\label{sub:efficency}
+For my design, I use one initialization vector and one tag for each block of size 1024 bytes. This implies that one can store at most 976 bytes of actual data for each block $n$ where $n>0$, and 764 bytes for block 0. There is a trade off between the number of IV and tag usage and speed efficiency. I chose to design the system this way because I think it is natural to treat each block as one plaintext and is easier to implement. Also, while treating a file system block as several plaintext blocks will improve speed efficiency, we still need to encrypt empty block because we pad plain text block with 0x00 to hide the length. Moreover, for both read and write access, i re-encrypt with new IV; this way introduces lots of overhead. However, I think for an adversary who has a view on the encrypted content will require more effort to differentiate between read and write access, and he only knows if it's a write access if new file is added.  
+\begin{description}
+  \item[Maximum Storage Efficiency] Using less IV and Tags to improve storage efficiency but this design requires more time on updating. Intuitively, we only need one initial vector and one tag stored at block 0; however, if we want to update some blocks, we need to re-encrypt all other block again with new fresh IV. Otherwise, it will be a two-time pad, and the attacker will be able to decrypt our cipher text. Thus, we can store less initialization vector; however, everytime we read or update a portion, we need to re-encrypt and compute tag for large number of block.
+  \item[Speed Efficiency] Using more IVs and Tags to reduce the number of blocks that need to be updated. Similarly, by treating a block as several messages, one can efficiently update part of a block after a read or write. However, this design requires user to store more IV and Tags.
+\end{description}
+
+\section{Pseudo-code}
+\subsection{Create} % (fold)
+\label{sub:create}
+takes as input $\mathsf{filename, username, password}$
+\begin{enumerate}
+  \item Check whether file exists or not
+  \item If file exists, verify username and password before removing file.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  if(dir.exists())
+    {
+      ... //obtain meta data
+      if (!verifyPasswordAndDigest(findUserName(file_name), passwordDigest, passwd_salt, password)) {
+          throw new PasswordIncorrectException();    
+      }
+    }
+  \end{lstlisting}
+  \item If file does not exists,
+  \begin{itemize}
+    \item Create new file pad it with 0x00 
+    \item Generate metadata
+    \begin{lstlisting}[linewidth=.5\columnwidth,breaklines=true,language=Java]
+    byte[] passwd_salt = secureRandomNumber(SALT_LENGTH);
+    byte[] enc_salt    = secureRandomNumber(SALT_LENGTH);
+    byte[] mac_salt    = secureRandomNumber(SALT_LENGTH);
+    file_length = intToByteArray(0);
+    \end{lstlisting}
+    \item Use metadata and password to derive encryption key and mac key
+    \begin{lstlisting}[linewidth=.5\columnwidth,breaklines=true,language=Java]
+    byte[] enc_key = DeriveEncryptionKey(password, enc_salt);
+    byte[] mac_key = DeriveMacKey(password, mac_salt);
+    \end{lstlisting}
+    \item Encrypt the padded content, compute tag, and save content.
+    \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+    byte[] cipher = encrypt_AES_CTR(ByteArrayConcatenation(file_length,contentToEncrypt.getBytes()), enc_key); // encrypt file length
+    payload = ByteArrayConcatenation(payload, cipher); // concatenate metadata with cipher
+    byte[] tag = MAC_SHA256(payload, mac_key);         // compute tag
+    save_to_file(payload, meta);                       // save
+    \end{lstlisting}
+  \end{itemize}
+\end{enumerate}
+% subsection create (end)
+\subsection{Length} % (fold)
+\label{sub:length}
+Takes as input filename and password, outputs file length:
+\begin{enumerate}
+  \item Verify whether file exists
+  \begin{lstlisting}[linewidth=.5\columnwidth,breaklines=true,language=Java]
+  if (!file.exists()) {
+      System.out.println("[-] File doesn't exists");
+      throw new Exception();
+  }\end{lstlisting}
+  \item If file exists, verify login credential 
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  if (!verifyPasswordAndDigest(findUserName(file_name), passwordDigest, passwd_salt, password))
+  {
+      throw new PasswordIncorrectException();    
+  }\end{lstlisting}
+  \item Verify integrity of the block about to read
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  if (!integrityOfBlock(file_name,mac_key, 0)) {
+      System.out.println("[-] Integrity Error: The metadata block has been modified");
+      throw new Exception();
+  }\end{lstlisting}
+  \item Use metadata and password to derive encryption key and mac key
+  \begin{lstlisting}[linewidth=.5\columnwidth,breaklines=true,language=Java]
+  byte[] enc_key = DeriveEncryptionKey(password, enc_salt);
+  byte[] mac_key = DeriveMacKey(password, mac_salt);\end{lstlisting}
+  \item Decrypt, obtain the file length which is encoded as the first 4 bytes of the first block, re-encrypt with new IV, compute hmac and write back.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  byte[] plain = decrypt_AES_CTR(cipher, enc_key);
+  // 4 obtain length
+  byte[] length = copyRange(plain,0,FILE_LENGTH);
+  //re-encrypt
+  byte[] newCipher = encrypt_AES_CTR(plain,enc_key);
+  // write back
+  for (int k = ENCRYPTED0_POSITION ; k < MAC_POSITION; k++ ) {
+      firstBlock[k] = newCipher[k];
+  }
+  // recompute hmac
+  byte[] payload = copyRange(firstBlock, 0, MAC_POSITION);
+  byte[] tag = MAC_SHA256(payload, mac_key);
+  ...
+  //write back
+  save_to_file(firstBlock, meta);\end{lstlisting}
+\end{enumerate}
+% subsection length (end)
+
+\subsection{Read} % (fold)
+\label{sub:read}
+Takes as input filename, starting\_position, length, and password
+\begin{enumerate}
+  \item Verify whether file exists
+  \begin{lstlisting}[linewidth=.5\columnwidth,breaklines=true,language=Java]
+  if (!file.exists()) {
+      System.out.println("[-] File doesn't exists");
+      throw new Exception();
+  }\end{lstlisting}
+  \item If file exists, verify login credential.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  if (!verifyPasswordAndDigest(findUserName(file_name), passwordDigest, passwd_salt, password))
+  {
+      throw new PasswordIncorrectException();    
+  }\end{lstlisting}
+  \item Use metadata and password to derive encryption key and mac key
+  \begin{lstlisting}[linewidth=.5\columnwidth,breaklines=true,language=Java]
+  byte[] enc_key = DeriveEncryptionKey(password, enc_salt);
+  byte[] mac_key = DeriveMacKey(password, mac_salt);\end{lstlisting}
+  \item Verify integrity of metadata block (block 0)
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  if (!integrityOfBlock(file_name,mac_key, 0)) {
+      System.out.println("[-] Integrity Error: The metadata block has been modified");
+      throw new Exception();
+  }\end{lstlisting}
+  \item Determine starting block to read and ending block to read.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  int start_block = startBlock(starting_position);
+  int end_block = startBlock(starting_position + len);
+  if (end_block > startBlock(file_length)) 
+  {
+      System.out.println("[-] end_block does not exist");
+      throw new Exception();    
+  }\end{lstlisting}
+  \item For each block, verify integrity of that block, then decrypt, obtain the data, reencrypt with new IV, recompute mac, and write back.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  //verify integrity
+  if (!integrityOfBlock(file_name,mac_key,i)) 
+  {
+      System.out.println("[-] Integrity Error: block has been tamper");
+      throw new Exception();
+  }
+  // decrypt
+  byte[] plain = decrypt_AES_CTR(cipher, enc_key);
+  // read plain
+  for (int j = starting_position-(i-1)*PLAINi_LENGTH-PLAIN0_LENGTH; j < numByteToWrite; j++) {                    
+      content[rp]=plain[j]; 
+      rp++;
+      starting_position++;
+  }
+  //re-encrypt
+  byte[] newCipher = encrypt_AES_CTR(plain,enc_key);
+  ...
+  // recompute hmac
+  byte[] payload = copyRange(firstBlock, 0, MAC_POSITION);
+  byte[] tag = MAC_SHA256(payload, mac_key);
+  ...
+  //write back
+  save_to_file(firstBlock, meta);\end{lstlisting}
+\end{enumerate}
+% subsection read (end)
+
+\subsection{Write} % (fold)
+\label{sub:write}
+takes as input filename, starting\_position, content, and password 
+\begin{enumerate}
+  \item Verify whether file exists
+  \begin{lstlisting}[linewidth=.5\columnwidth,breaklines=true,language=Java]
+  if (!file.exists()) {
+      System.out.println("[-] File doesn't exists");
+      throw new Exception();
+  }\end{lstlisting}
+  \item If file exists, verify login credential.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  if (!verifyPasswordAndDigest(findUserName(file_name), passwordDigest, passwd_salt, password))
+  {
+      throw new PasswordIncorrectException();    
+  }\end{lstlisting}
+
+  \item Use metadata and password to derive encryption key and mac key
+  \begin{lstlisting}[linewidth=.5\columnwidth,breaklines=true,language=Java]
+  byte[] enc_key = DeriveEncryptionKey(password, enc_salt);
+  byte[] mac_key = DeriveMacKey(password, mac_salt);\end{lstlisting}
+  
+  \item Verify integrity of metadata block (block 0)
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  if (!integrityOfBlock(file_name,mac_key, 0)) {
+      System.out.println("[-] Integrity Error: The metadata block has been modified");
+      throw new Exception();
+  }\end{lstlisting}
+  
+  \item Determine starting block and ending block to write.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  int start_block = startBlock(starting_position);
+  int end_block = startBlock(starting_position + len);\end{lstlisting}
+  \item For each block, check whether if block exists or not. If block does not exist, create new empty block.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  if(!meta.exists())
+  {
+      //create a new block of empty string and hmac
+      String toWrite = "";
+      while(toWrite.length() < PLAINi_LENGTH)
+      {
+          toWrite += '\0';
+      }
+      byte[] toWriteCipher = encrypt_AES_CTR(toWrite.getBytes(), enc_key);
+      byte[] tag = MAC_SHA256(toWriteCipher,mac_key);
+      byte[] toWriteCipherTag = ByteArrayConcatenation(toWriteCipher,tag);
+      save_to_file(toWriteCipherTag, meta);
+  }\end{lstlisting}
+  \item Before any write operation verify integrity of the block, decrypt, update the data if necessary, reencrypt with new IV, recompute mac for each block.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  //checking integrity
+  if (!integrityOfBlock(file_name,mac_key,i)) 
+  {
+      System.out.println("[-] Integrity Error: block has been tamper");
+      throw new Exception();
+  }
+  // obtain cipher text
+  byte[] cipher = get_ciphertext(file_name,i);
+  // decrypt
+  byte[] plain = decrypt_AES_CTR(cipher, enc_key);
+  // write to plain
+  for (int j = starting_position-(i-1)*PLAINi_LENGTH-PLAIN0_LENGTH; j < numByteToWrite; j++) 
+  {                    
+      plain[j] = content[wp]; 
+      wp++;
+      starting_position++;
+  }
+  len=len-wp;
+  //re-encrypt
+  byte[] newCipher = encrypt_AES_CTR(plain,enc_key);
+  // write back
+  for (int k = ENCRYPTEDi_POSITION ; k < MAC_POSITION; k++ ) {
+      firstBlock[k] = newCipher[k];
+  }
+  // recompute hmac
+  byte[] payload = copyRange(firstBlock, 0, MAC_POSITION);
+  byte[] tag = MAC_SHA256(payload, mac_key);
+  for (int m = MAC_POSITION; m < Config.BLOCK_SIZE; m++) 
+  {
+      firstBlock[m] = tag[m-MAC_POSITION];
+  }
+  save_to_file(firstBlock, meta);
+  \end{lstlisting}
+  \item finally, if filelength is increased, i will update the meta data by decrypting, writing back, re-encrypting, and recomputing hmac.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  // update meta data
+  if (content.length + initalStartingPosition > file_length) 
+  {
+      int newLength = content.length + initalStartingPosition;
+      System.out.println(newLength);
+      byte[] newLengthbyte = intToByteArray(newLength);
+      File meta = new File(root, "0");
+      byte[] firstBlock = read_from_file(meta);
+      // obtain cipher text
+      byte[] cipher = get_ciphertext(file_name,0);
+      // decrypt
+      byte[] plain = decrypt_AES_CTR(cipher, enc_key);
+      for (int n = 0; n < FILE_LENGTH; n++) {
+          plain[n] = newLengthbyte[n]; 
+      }
+      //re-encrypt
+      byte[] newCipher = encrypt_AES_CTR(plain,enc_key);
+      // write back
+      for (int k = ENCRYPTED0_POSITION ; k < MAC_POSITION; k++ ) {
+          firstBlock[k] = newCipher[k-ENCRYPTED0_POSITION];
+      }
+      // recompute hmac
+      byte[] payload = copyRange(firstBlock, 0, MAC_POSITION);
+      byte[] tag = MAC_SHA256(payload, mac_key);
+      for (int m = MAC_POSITION; m < Config.BLOCK_SIZE; m++) 
+      {
+          firstBlock[m] = tag[m-MAC_POSITION];
+      }
+      save_to_file(firstBlock, meta);
+  }\end{lstlisting}
+\end{enumerate}
+% subsection write (end)
+
+\subsection{Check Integrity} % (fold)
+\label{sub:check_integrity}
+takes as input filename, password
+\begin{enumerate}
+  \item Verify whether file exists
+  \begin{lstlisting}[linewidth=.5\columnwidth,breaklines=true,language=Java]
+  if (!file.exists()) {
+      System.out.println("[-] File doesn't exists");
+      throw new Exception();
+  }\end{lstlisting}
+  \item If file exists, verify login credential.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  if (!verifyPasswordAndDigest(findUserName(file_name), passwordDigest, passwd_salt, password))
+  {
+      throw new PasswordIncorrectException();    
+  }\end{lstlisting}
+  \item Use metadata and password to derive mac key
+  \begin{lstlisting}[linewidth=.5\columnwidth,breaklines=true,language=Java]
+  byte[] mac_key = DeriveMacKey(password, mac_salt);\end{lstlisting}
+  \item Verify integrity of metadata block (block 0)
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  if (!integrityOfBlock(file_name,mac_key, 0)) {
+      System.out.println("[-] Integrity Error: The metadata block has been modified");
+      throw new Exception();
+  }\end{lstlisting}
+
+  \item Determine the number of blocks that need to verified
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  int file_length = length(file_name, password);
+  int numBlock = startBlock(file_length)+1;\end{lstlisting}
+  \item Verify integrity of each block. Return false if one fail. Otherwise return true
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  for (int i = 1 ; i < numBlock ; i++) {
+    if (!integrityOfBlock(file_name,mac_key,i)) 
+    {
+        return false;
+    }
+  }
+  return true;\end{lstlisting}
+\end{enumerate}
+% subsection check_integrity (end)
+
+\subsection{Cut} % (fold)
+\label{sub:Cut}
+\begin{enumerate}
+\item Verify whether file exists
+  \begin{lstlisting}[linewidth=.5\columnwidth,breaklines=true,language=Java]
+  if (!file.exists()) {
+      System.out.println("[-] File doesn't exists");
+      throw new Exception();
+  }\end{lstlisting}
+  \item If file exists, verify login credential.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  if (!verifyPasswordAndDigest(findUserName(file_name), passwordDigest, passwd_salt, password))
+  {
+      throw new PasswordIncorrectException();    
+  }\end{lstlisting}
+  \item Use metadata and password to derive encryption key and mac key
+  \begin{lstlisting}[linewidth=.5\columnwidth,breaklines=true,language=Java]
+  byte[] enc_key = DeriveEncryptionKey(password, enc_salt);
+  byte[] mac_key = DeriveMacKey(password, mac_salt);\end{lstlisting}
+  \item Verify integrity of metadata block (block 0)
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  if (!integrityOfBlock(file_name,mac_key, 0)) {
+      System.out.println("[-] Integrity Error: The metadata block has been modified");
+      throw new Exception();
+  }\end{lstlisting}
+  \item Determine starting block to cut and ending block to cut.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  int end_block = startBlock(len);
+  int exist_block = startBlock(file_length);\end{lstlisting}
+  \item Delete redundant blocks.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  for (int cur = end_block+1; cur <= exist_block; cur++) {
+    File file = new File(root, Integer.toString(cur));
+    while (file.exists()) {
+        file.delete();
+        System.out.println("[+] Delete empty file "+ cur);
+    }
+  }\end{lstlisting} 
+  \item Remove old content from the current last block by writing empty to the len position.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  while(flushString.length() < PLAINi_LENGTH)
+  {
+    flushString += '\0';
+  }
+  write(file_name,len, flushString.getBytes(), password);
+  \end{lstlisting} 
+  \item Update metadata which is the file length. This implies reencrypt and recompute mac.
+  \begin{lstlisting}[linewidth=\columnwidth,breaklines=true,language=Java]
+  //update meta data
+  byte[] newLengthbyte = intToByteArray(len);
+  File meta = new File(root, "0");
+  byte[] firstBlock = read_from_file(meta);
+  // obtain cipher text
+  byte[] cipher = get_ciphertext(file_name,0);
+  // decrypt
+  byte[] plain = decrypt_AES_CTR(cipher, enc_key);
+  for (int n = 0; n < FILE_LENGTH; n++) {
+      plain[n] = newLengthbyte[n]; 
+  }
+  //re-encrypt
+  byte[] newCipher = encrypt_AES_CTR(plain,enc_key);
+  // write back
+  for (int k = ENCRYPTED0_POSITION ; k < MAC_POSITION; k++ ) {
+      firstBlock[k] = newCipher[k-ENCRYPTED0_POSITION];
+  }
+  // recompute hmac
+  byte[] payload = copyRange(firstBlock, 0, MAC_POSITION);
+  byte[] tag = MAC_SHA256(payload, mac_key);
+  for (int m = MAC_POSITION; m < Config.BLOCK_SIZE; m++) 
+  {
+      firstBlock[m] = tag[m-MAC_POSITION];
+  }
+  save_to_file(firstBlock, meta);
+  \end{lstlisting} 
+\end{enumerate}
+
+\textbf{Note:} The reason for re-encrypting and reMAC for reading is to hide access pattern. An adversary should not able to differentiate read and write access. He only knows if it's a write when the write adds more content to file.
+\section{Design Variations}
+\begin{enumerate}
+  \item  Suppose that the only write operation that could occur is to append at the end of the file. How would you change your design to achieve the best efficiency (storage and speed) without affecting security?
+  \\
+  \textbf{Answer:} I will choose the design that maximum storage efficiency where only one initial vector is used, and I will not pad actual data with 0x00 to hide the length. The reason is that write operation is now append-only operation. We only need to obtain the IV and increment it to encrypt new write content of file. Also, if i pad it with 0x00 to hide the file without renew IV, then this will be a two time pad.
+  \item Suppose that we are concerned only with adversaries that steal the disks. That is, the adversary can read only one version of the the same file. How would you change your design to achieve the best efficiency?
+  \\
+  \textbf{Answer: }
+
+  \begin{itemize}
+    \item 
+    I will choose the the design that uses a single initial vector. The reason is that despite that the vector is chosen uniformly at random, if one reuses one of them some where in the file, then the attacker can decrypt a portion cipher text. The higher the number of IVs are used in the encrypted file, the higher chance of reusing same IV. Therefore, using only one IV reduce such chance because attacker only get to see one version of the file.
+    \item Also, since the disk gets stolen, one may not need to use MAC at all.
+  \end{itemize}
+  \item Can you use the CBC mode? If yes, how would your design change, and analyze the efficiency of the resulting design. If no, why?
+  \\
+  \textbf{Answer:} 
+  \begin{itemize}
+    \item 
+    Yes. CBC mode of encryption can achieve the same level of security as CTR mode. However, one will need a pseudorandom permutation function to construct encryption using CBC mode. In other word, in this project, we will need to use the $\mathsf{decript\_AES()}$ function and $\mathsf{encript\_AES()}$ at the same time while we only need to use $\mathsf{encript\_AES()}$ for CTR mode. Also, since the encryption is linear, one may want to treat each file system block as smaller messages to improve encryption performance.  
+    \item From security point of view,  I think using CBC mode is better than CTR mode in the case of misusing IV. In CTR mode, reusing IV implies that the attacker will learn lots about the plain text. However, for CBC mode, after encrypting few block, the output will be more diverge, and an adversary may not learn anything other than first few block.
+  \end{itemize}
+
+  
+  \item Can you use the ECB mode? If yes, how would your design change, and analyze the efficiency of the resulting design. If no, why?
+  \\
+  \textbf{Answer:} No. ECB mode of encryption is deterministic and stateless. Therefore, it's not IND-CPA-secure. Unless we generate different keys to encrypt each 128-bit block which is highly inefficient. 
+\end{enumerate}
+\section{Paper Reading}
+\begin{description}
+  \item[Question 1]
+  Consider adversary $A$ that has access to $\mathsf{scrypt(\cdot)}$
+  \begin{enumerate}
+    \item Creates userid of length 7, $\mathsf{userid} =\mathsf{abcdefg}$, log-in and receives $T_7= \mathsf{scrypt(abcdefg||}K) = \mathsf{scrypt(abcdefgk_1)}$ where $k_1$ is the first byte of $K$.
+    \item For each possible character $\mathsf{r}$, $A$ tries and verify whether $T_7 \stackrel{?}{=} \mathsf{scrypt(abcdefgr)}$. If it is equal, A learn that $k_1=r$ with high probability.  
+
+    \item Creates userid of length 6,  $\mathsf{userid} =\mathsf{abcdef}$ log-in and receives $T_6= \mathsf{scrypt(abcdef||}K) = \mathsf{scrypt(abcdefgk_1k_2)}$ where $k_2$ is the second byte of $K$
+    \item Repeat step 2, with knowledge of $k_1$ for each possible character $\mathsf{r}$,  verify  $T_6 \stackrel{?}{=} \mathsf{scrypt(abcdefk_1r)}$
+
+    \item Repeat until he learns $k_3 , k_4, ... ,k_\ell$
+  \end{enumerate}
+  For a verification like in step 2, attacker requires at most 128 call to $\mathsf{scrypt}(\cdot)$. Since the length of $K$ is $\ell$, the attacker require at most $128\ell$ to learn $K$  
+\end{description}
+\end{document}
+
